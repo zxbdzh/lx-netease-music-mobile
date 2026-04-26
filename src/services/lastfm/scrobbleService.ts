@@ -5,6 +5,11 @@ import playerState from '@/store/player/state'
 const SCROBBLE_MIN_DURATION = 120
 const SCROBBLE_PERCENTAGE = 0.5
 
+// 取第一个歌手（多艺术家时只取第一个）
+const getFirstArtist = (artist: string): string => {
+  return artist.split(/[、,，]/)[0].trim()
+}
+
 let currentTrackStartTime: number | null = null
 let scrobbledTrackId: string | null = null
 let reportedNowPlayingTrackId: string | null = null
@@ -53,7 +58,7 @@ const tryScrobble = async () => {
   const duration = Math.floor(playerState.progress.nowPlayTime)
 
   const result = await scrobble(
-    musicInfo.singer || '',
+    getFirstArtist(musicInfo.singer || ''),
     musicInfo.name || '',
     duration,
     timestamp,
@@ -78,7 +83,7 @@ export const reportNowPlaying = async () => {
   if (!musicInfo?.id) return
 
   await updateNowPlaying(
-    musicInfo.singer || '',
+    getFirstArtist(musicInfo.singer || ''),
     musicInfo.name || '',
     Math.floor(playerState.progress.maxPlayTime),
     LASTFM_API_KEY,
