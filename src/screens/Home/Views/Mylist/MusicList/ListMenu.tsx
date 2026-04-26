@@ -4,6 +4,8 @@ import Menu, { type Menus, type MenuType, type Position } from '@/components/com
 import { hasDislike } from '@/core/dislikeList'
 import { existsFile } from '@/utils/fs'
 import { useSettingValue } from '@/store/setting/hook'
+import songMemoryAction from '@/store/songMemory/action'
+import shareMusicCardAction from '@/store/shareMusicCard/action'
 
 export interface SelectInfo {
   musicInfo: LX.Music.MusicInfo
@@ -112,6 +114,8 @@ export default forwardRef<ListMenuType, ListMenuProps>((props, ref) => {
 
       if (menuSetting.dislike) menu.push({ action: 'dislike', disabled: hasDislike(musicInfo), label: t('dislike') })
       menu.push({ action: 'remove', label: t('delete') })
+      menu.push({ action: 'songMemory', label: '📍 坐标回忆' })
+      menu.push({ action: 'shareCard', label: '🎵 分享卡片' })
 
       if (musicInfo.source == 'local') {
         const canEdit = await hasEditMetadata(musicInfo)
@@ -145,6 +149,8 @@ export default forwardRef<ListMenuType, ListMenuProps>((props, ref) => {
       case 'musicSourceDetail': props.onMusicSourceDetail(info); break
       case 'remove': props.onRemove(info); break
       case 'playMv': props.onPlayMv(info); break
+      case 'songMemory': songMemoryAction.open(info.musicInfo); break
+      case 'shareCard': shareMusicCardAction.open(info.musicInfo); break
       default:
         break
     }

@@ -16,9 +16,12 @@ import {useBackHandler} from "@/utils/hooks/useBackHandler.ts";
 
 import { setSearchText as setSearchState } from '@/core/search/search'
 import WebLoginManager from "@/components/WebLoginManager.tsx";
+import LastfmLoginManager from "@/components/LastfmLoginManager.tsx";
 import DownloadBall from "@/components/DownloadBall";
 import YouTubeLoginManager from "@/components/YouTubeLoginManager.tsx";
 import VideoPlayerManager from "@/components/VideoPlayerManager.tsx";
+import SongMemoryModal from '@/components/SongMemory';
+import ShareMusicCardModal from '@/components/ShareMusicCard';
 interface Props {
   componentId: string
 }
@@ -75,8 +78,11 @@ export default ({ componentId }: Props) => {
       <PageContent>{isHorizontalMode ? <Horizontal componentId={componentId} /> : <Vertical componentId={componentId} />}</PageContent>
       <ArtistSelectorManager />
       <WebLoginManager />
+      <LastfmLoginManager />
       {/*<YouTubeLoginManager />*/}
       <VideoPlayerManager />
       <DownloadBall />
+      <SongMemoryModal />
+      <ShareMusicCardModal />
     </>
   )}

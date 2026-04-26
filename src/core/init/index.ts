@@ -16,6 +16,7 @@ import { checkUpdate } from '@/core/version'
 import { bootLog } from '@/utils/bootLog'
 import { cheatTip } from '@/utils/tools'
 import * as networkLyric from '@/core/networkLyric'
+import { initScrobbleService } from '@/services/lastfm/scrobbleService'
 
 let isFirstPush = true
 const handlePushedHomeScreen = async () => {
@@ -75,6 +76,10 @@ export default async () => {
   bootLog('Common State inited.')
 
   isInited ||= true
+
+  // 初始化 Last.fm Scrobble 服务
+  initScrobbleService()
+  bootLog('Last.fm scrobble service inited.')
 
   return handlePushedHomeScreen
 }

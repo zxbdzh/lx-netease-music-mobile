@@ -134,6 +134,33 @@ export class StateEvent extends Event {
   sourceNamesUpdated(names: CommonState['sourceNames']) {
     this.emit('sourceNamesUpdated', names)
   }
+
+  // ========== SongMemory (坐标回忆) ==========
+  songMemoryStateChanged(state: {
+    isShow: boolean
+    musicInfo: LX.Music.MusicInfo | null
+    data: any
+    loading: boolean
+  }) {
+    this.emit('songMemoryStateChanged', state)
+  }
+
+  // ========== ShareMusicCard (卡片分享) ==========
+  shareMusicCardStateChanged(state: {
+    isShow: boolean
+    musicInfo: LX.Music.MusicInfo | null
+  }) {
+    this.emit('shareMusicCardStateChanged', state)
+  }
+
+  // ========== Last.fm ==========
+  lastfmConfigChanged(config: {
+    enabled: boolean
+    sessionKey: string
+    apiKey: string
+  }) {
+    this.emit('lastfmConfigChanged', config)
+  }
 }
 
 type EventMethods = Omit<EventType, keyof Event>

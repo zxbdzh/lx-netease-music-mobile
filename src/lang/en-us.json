@@ -428,6 +428,7 @@
   "setting_search": "Search",
   "setting_search_show_history_search": "Enable Search History",
   "setting_search_show_hot_search": "Enable Top Searches",
+  "setting_lastfm": "Last.fm",
   "setting_sync": "Sync",
   "setting_sync_address": "Current device address: {address}",
   "setting_sync_code_blocked_ip": "The IP of the current device has been blocked by the server!",

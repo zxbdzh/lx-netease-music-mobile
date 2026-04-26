@@ -4,6 +4,8 @@ import Menu, { type MenuType, type Position, type Menus } from '@/components/com
 import settingState from '@/store/setting/state'
 import userState from '@/store/user/state'
 import {useSettingValue} from "@/store/setting/hook.ts";
+import songMemoryAction from '@/store/songMemory/action'
+import shareMusicCardAction from '@/store/shareMusicCard/action';
 
 export interface SelectInfo {
   musicInfo: LX.Music.MusicInfo
@@ -32,6 +34,7 @@ export type { Position }
 export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) => {
   const t = useI18n();
   const [visible, setVisible] = useState(false);
+  const [currentMusicInfo, setCurrentMusicInfo] = useState<LX.Music.MusicInfo | null>(null)
   const menuRef = useRef<MenuType>(null);
   const selectInfoRef = useRef<SelectInfo>(initSelectInfo as SelectInfo);
   const [isLiked, setIsLiked] = useState(false);
@@ -45,6 +48,7 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
   useImperativeHandle(ref, () => ({
     show(selectInfo, position) {
       selectInfoRef.current = selectInfo;
+      setCurrentMusicInfo(selectInfo.musicInfo)
       if (selectInfo.musicInfo.source === 'wy') {
         setIsLiked(userState.wy_liked_song_ids.has(String(selectInfo.musicInfo.meta.songId)));
       }
@@ -60,7 +64,7 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
   }));
 
   const menus = useMemo((): Menus => {
-    const musicInfo = selectInfoRef.current.musicInfo;
+    const musicInfo = currentMusicInfo;
     const menuItems: Menus[number][] = [];
     menuItems.push({ action: 'download', label: t('download') });
     if (menuSetting.share) menuItems.push({ action: 'copyName', label: t('copy_name') });
@@ -75,12 +79,17 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
       }
     }
 
+    // 所有歌曲都能看到坐标回忆和分享卡片
+    menuItems.push({ action: 'songMemory', label: '📍 坐标回忆' })
+    menuItems.push({ action: 'shareCard', label: '🎵 分享卡片' })
+
     if (musicInfo && musicInfo.source !== 'local') {
      if (menuSetting.songDetail) menuItems.push({ action: 'musicSourceDetail', label: t('music_source_detail') });
     }
 
+    console.log('=== MENU ITEMS ===', menuItems.map(m => m.label))
     return menuItems;
-  }, [t, isLiked, selectInfoRef.current.musicInfo, menuSetting]);
+  }, [t, isLiked, currentMusicInfo, menuSetting]);
 
   const handleMenuPress = ({ action }: (typeof menus)[number]) => {
     const selectInfo = selectInfoRef.current;
@@ -105,6 +114,12 @@ export default forwardRef<PlayDetailMenuType, PlayDetailMenuProps>((props, ref) 
         break;
       case 'musicSourceDetail':
         props.onMusicSourceDetail(selectInfo);
+        break;
+      case 'songMemory':
+        songMemoryAction.open(selectInfo.musicInfo);
+        break;
+      case 'shareCard':
+        shareMusicCardAction.open(selectInfo.musicInfo);
         break;
       default:
         break;

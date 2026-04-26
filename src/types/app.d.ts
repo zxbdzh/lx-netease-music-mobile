@@ -74,6 +74,7 @@ declare global {
     'yt-cookie-set': (cookie: string) => void
     showWebLogin: () => void
     showYouTubeLogin: () => void
+    showLastfmLogin: () => void
     showVideoPlayer: (url: string) => void
   }
   var list_event: ListEventTypes

@@ -3,6 +3,7 @@ import { errorDialog } from './utils'
 import { handleMusicAction } from './musicAction'
 import { handlePlayerAction, type PlayerAction } from './playerAction'
 import { handleSonglistAction } from './songlistAction'
+import { handleLastfmAction } from './lastfmAction'
 import { extname, stat } from '@/utils/fs'
 import { handleFileMusicAction, handleFileJSAction, handleFileLXMCAction } from './fileAction'
 
@@ -35,6 +36,9 @@ const handleLinkAction = async (link: string) => {
       break
     case 'player':
       await handlePlayerAction(action as PlayerAction)
+      break
+    case 'lastfm':
+      await handleLastfmAction(action, params)
       break
     // default: throw new Error('Unknown type: ' + type)
   }

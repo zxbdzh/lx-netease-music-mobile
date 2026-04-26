@@ -11,9 +11,11 @@ import Backup from './settings/Backup'
 import Other from './settings/Other'
 import Version from './settings/Version'
 import About from './settings/About'
+import Lastfm from './settings/Lastfm'
 
 export const SETTING_SCREENS = [
   'basic',
+  'lastfm',
   'player',
   'lyric_desktop',
   // 'search',
@@ -62,6 +64,8 @@ const Main = forwardRef<MainType, {}>((props, ref) => {
         return <Download />
       case 'sync':
         return <Sync />
+      case 'lastfm':
+        return <Lastfm />
       case 'backup':
         return <Backup />
       case 'other':

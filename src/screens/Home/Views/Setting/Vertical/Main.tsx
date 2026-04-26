@@ -12,6 +12,7 @@ import Backup from '../settings/Backup'
 import Other from '../settings/Other'
 import Version from '../settings/Version'
 import About from '../settings/About'
+import Lastfm from '../settings/Lastfm'
 import { createStyle } from '@/utils/tools'
 import { SETTING_SCREENS, type SettingScreenIds } from '../Main'
 
@@ -44,6 +45,8 @@ const ListItem = memo(
         return <Sync />
       case 'backup':
         return <Backup />
+      case 'lastfm':
+        return <Lastfm />
       case 'other':
         return <Other />
       case 'version':

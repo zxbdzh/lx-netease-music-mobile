@@ -1,5 +1,4 @@
 import { useEffect } from 'react'
-// import { View, StyleSheet } from 'react-native'
 import { useHorizontalMode } from '@/utils/hooks'
 
 import Vertical from './Vertical'
@@ -8,6 +7,8 @@ import PageContent from '@/components/PageContent'
 import StatusBar from '@/components/common/StatusBar'
 import { setComponentId } from '@/core/common'
 import { COMPONENT_IDS } from '@/config/constant'
+import SongMemoryModal from '@/components/SongMemory'
+import ShareMusicCardModal from '@/components/ShareMusicCard'
 
 export default ({ componentId }: { componentId: string }) => {
   const isHorizontalMode = useHorizontalMode()
@@ -24,6 +25,8 @@ export default ({ componentId }: { componentId: string }) => {
       ) : (
         <Vertical componentId={componentId} />
       )}
+      <SongMemoryModal />
+      <ShareMusicCardModal />
     </PageContent>
   )
 }

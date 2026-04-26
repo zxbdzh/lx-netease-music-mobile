@@ -121,6 +121,13 @@ const defaultSetting: LX.AppSetting = {
   'theme.fontShadow': false,
   'theme.customBgPicPath': '',
   'theme.picOpacity': 76,
+
+  // Last.fm
+  'common.lastfm_enabled': false,
+  'common.lastfm_session_key': '',
+  'common.lastfm_username': '',
+  'common.lastfm_scrobble_enabled': true,
+  'common.lastfm_now_playing_enabled': false,
 }
 
 // 使用新年皮肤
