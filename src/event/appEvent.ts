@@ -11,6 +11,7 @@ import {COMPONENT_IDS, LIST_IDS, type NAV_ID_Type} from '@/config/constant'
 import {navigations} from "@/navigation";
 import {getDailyRecCache} from "@/utils/data.ts";
 import {toast} from "@/utils/tools.ts";
+import { isOneDriveMusicInfo } from '@/core/oneDrive/utils'
 
 // {
 //   // sync: {
@@ -166,6 +167,10 @@ export class AppEvent extends Event {
     this.emit('musicInfoUpdate', musicInfo)
   }
 
+  playHistoryUpdated() {
+    this.emit('playHistoryUpdated')
+  }
+
   changeMenuVisible(visible: boolean) {
     this.emit('changeMenuVisible', visible)
   }
@@ -181,7 +186,16 @@ export class AppEvent extends Event {
   async jumpListPosition() {
     const playMusicInfo = playerState.playMusicInfo
     let listId = playMusicInfo.listId
-    const musicInfo = 'progress' in playMusicInfo.musicInfo ? playMusicInfo.musicInfo.metadata.musicInfo : playMusicInfo.musicInfo
+    const rawMusicInfo = playMusicInfo.musicInfo
+    const musicInfo = rawMusicInfo && 'progress' in rawMusicInfo ? rawMusicInfo.metadata.musicInfo : rawMusicInfo
+
+    if (isOneDriveMusicInfo(musicInfo)) {
+      if (commonState.navActiveId !== 'nav_onedrive') setNavActiveId('nav_onedrive')
+      setTimeout(() => {
+        this.emit('jumpOneDrivePosition')
+      }, 200)
+      return
+    }
 
     if (!listId || !musicInfo) {
       if (commonState.navActiveId === 'nav_love') {
@@ -291,7 +305,7 @@ export class AppEvent extends Event {
   download_progress_update(payload: { id: string, progress: DownloadTask['progress'] }) {
     this.emit('download_progress_update', payload)
   }
-  download_status_update(payload: { id: string, status: DownloadTask['status'] }) {
+  download_status_update(payload: { id: string, status: DownloadTask['status'], errorMsg?: string }) {
     this.emit('download_status_update', payload)
   }
   download_metadata_update(payload: { id: string, metadataStatus: DownloadTask['metadataStatus'] }) {
@@ -305,6 +319,10 @@ export class AppEvent extends Event {
   }
   playlist_updated(data: { source: string, listId: string }) {
     this.emit('playlist_updated', data)
+  }
+
+  jumpOneDrivePosition() {
+    this.emit('jumpOneDrivePosition')
   }
 }
 

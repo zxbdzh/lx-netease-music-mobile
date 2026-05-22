@@ -48,6 +48,7 @@ export const storageDataPrefix = {
   list: '@list__',
   listScrollPosition: '@list_scroll_position',
   listPrevSelectId: '@list_prev_select_id',
+  playHistory: '@play_history',
 
   lyric: '@lyric__',
   musicUrl: '@music_url__',
@@ -108,6 +109,7 @@ export const APP_PROVIDER_NAME = 'com.lxnetease.music.mobile.provider'
 
 export const NAV_MENUS = [
   { id: 'nav_search', icon: 'search-2' },
+  { id: 'nav_play_history', icon: 'music_time' },
   { id: 'nav_songlist', icon: 'album' },
   { id: 'nav_top', icon: 'leaderboard' },
   { id: 'nav_love', icon: 'love' },
@@ -115,6 +117,7 @@ export const NAV_MENUS = [
   { id: 'nav_followed_artists', icon: 'svg:artist' },
   { id: 'nav_subscribed_albums', icon: 'svg:album-disc' },
   { id: 'nav_my_playlist', icon: 'album' },
+  { id: 'nav_onedrive', icon: 'svg:onedrive' },
   // { id: 'download', icon: 'download-2' },
   { id: 'nav_setting', icon: 'setting' },
 ] as const

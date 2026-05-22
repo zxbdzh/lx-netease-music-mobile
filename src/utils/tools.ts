@@ -367,6 +367,10 @@ export const resetIgnoringBatteryOptimizationCheck = async () => {
   return removeData(storageDataPrefix.ignoringBatteryOptimizationTipEnable)
 }
 
+export const formatMusicName = (format: string, name: string, singer: string) => {
+  return format.replace('歌手', singer).replace('歌名', name)
+}
+
 export const shareMusic = (
   shareType: LX.ShareType,
   downloadFileName: LX.AppSetting['download.fileName'],
@@ -378,7 +382,7 @@ export const shareMusic = (
     musicInfo.source == 'local'
       ? ''
       : (musicSdk[musicInfo.source]?.getMusicDetailPageUrl(toOldMusicInfo(musicInfo)) ?? '')
-  const musicTitle = downloadFileName.replace('歌名', name).replace('歌手', singer)
+  const musicTitle = formatMusicName(downloadFileName, name, singer)
   switch (shareType) {
     case 'system':
       void shareText(
@@ -585,9 +589,16 @@ export interface RowInfo {
   rowWidth: `${number}%`
 }
 
-export type RowInfoType = 'full' | 'medium'
+export type RowInfoType = 'full' | 'medium' | 'single'
 
 export const getRowInfo = (type: RowInfoType = 'full'): RowInfo => {
+  if (type == 'single') {
+    return {
+      rowNum: undefined,
+      rowWidth: '100%',
+    }
+  }
+
   const win = windowSizeTools.getSize()
   let isMultiRow = isHorizontalMode(win.width, win.height)
   if (type == 'medium' && win.width / win.height < 1.8) isMultiRow = false

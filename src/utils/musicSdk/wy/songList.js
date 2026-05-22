@@ -192,6 +192,7 @@ export default {
           singer: item.pc.ar ?? '',
           artists: item.ar,
           name: item.pc.sn ?? '',
+          alias: item.alia && item.alia.length ? item.alia[0] : '',
           albumName: item.pc.alb ?? '',
           albumId: item.al?.id,
           source: 'wy',
@@ -203,12 +204,25 @@ export default {
           types,
           _types,
           typeUrl: {},
+          meta: {
+            songId: item.id,
+            fee: item.fee,
+            albumName: item.pc.alb ?? '',
+            albumId: item.al?.id,
+            picUrl: item.al?.picUrl,
+            qualitys: types,
+            _qualitys: _types,
+            originCoverType: item.originCoverType,
+            noCopyrightRcmd: item.noCopyrightRcmd,
+            mv: item.mv,
+          },
         })
       } else {
         list.push({
           singer: formatSingerName(item.ar, 'name'),
           artists: item.ar,
           name: item.name ?? '',
+          alias: item.alia && item.alia.length ? item.alia[0] : '',
           albumName: item.al?.name,
           albumId: item.al?.id,
           source: 'wy',
@@ -221,8 +235,15 @@ export default {
           _types,
           typeUrl: {},
           meta: {
+            songId: item.id,
             fee: item.fee,
+            albumName: item.al?.name,
+            albumId: item.al?.id,
+            picUrl: item.al?.picUrl,
+            qualitys: types,
+            _qualitys: _types,
             originCoverType: item.originCoverType,
+            noCopyrightRcmd: item.noCopyrightRcmd,
             mv: item.mv,
           }
         })

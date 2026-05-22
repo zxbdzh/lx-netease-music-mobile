@@ -8,6 +8,17 @@ import {allMusicList} from "@/utils/listManage";
 
 const fetchingDetails = new Set()
 
+const getAlias = item => {
+  const aliases = Array.isArray(item.alia)
+    ? item.alia
+    : Array.isArray(item.alias)
+      ? item.alias
+      : item.alias
+        ? [item.alias]
+        : []
+  return aliases.length ? aliases[0] : ''
+}
+
 /**
  * 按需获取单首歌曲的详细音质信息，并补充到现有信息中
  */
@@ -124,11 +135,22 @@ export default {
       songs = songs.map(item => ({
         id: item.id,
         name: item.name,
+        alia: Array.isArray(item.alia)
+          ? item.alia
+          : Array.isArray(item.alias)
+            ? item.alias
+            : item.alias
+              ? [item.alias]
+              : [],
         ar: item.artists, // 将 artists 映射到 ar
         al: item.album,   // 将 album 映射到 al
         dt: item.duration, // 将 duration (毫秒) 映射到 dt
         publishTime: item.album?.publishTime,
         pc: item.pc, // 保留可能存在的 pc 字段
+        fee: item.fee,
+        originCoverType: item.originCoverType,
+        noCopyrightRcmd: item.noCopyrightRcmd,
+        mv: item.mv,
         l: item.lMusic,
         m: item.mMusic,
         h: item.hMusic,
@@ -194,6 +216,7 @@ export default {
         list.push({
           id: 'wy_' + item.id,
           name: item.pc.sn ?? '',
+          alias: getAlias(item),
           singer: item.pc.ar ?? '',
           source: 'wy',
           interval: formatPlayTime(item.dt / 1000),
@@ -205,6 +228,7 @@ export default {
             picUrl: item.al?.picUrl,
             qualitys: types,
             _qualitys: _types,
+            noCopyrightRcmd: item.noCopyrightRcmd,
           },
           releaseDate: item.publishTime ? dateFormat(item.publishTime, 'Y-M-D') : null,
           songmid: item.id,
@@ -219,7 +243,7 @@ export default {
         list.push({
           id: 'wy_' + item.id,
           name: item.name ?? '',
-          alias: item.alia && item.alia.length ? item.alia[0] : '',
+          alias: getAlias(item),
           singer: this.getSinger(item.ar),
           artists: item.ar,
           albumName: item.al?.name,
@@ -235,6 +259,7 @@ export default {
             qualitys: types,
             _qualitys: _types,
             originCoverType: item.originCoverType,
+            noCopyrightRcmd: item.noCopyrightRcmd,
             mv: item.mv,
           },
           releaseDate: item.publishTime ? dateFormat(item.publishTime, 'Y-M-D') : null,

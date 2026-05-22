@@ -30,6 +30,9 @@ import {
 import { handleShare } from '@/screens/Home/Views/Mylist/MusicList/listAction';
 import settingState from '@/store/setting/state';
 import commonState from '@/store/common/state';
+import SimilarSongsModal, { type SimilarSongsModalType } from '@/components/SimilarSongsModal'
+import { getMvUrl } from '@/utils/musicSdk/wy/mv.js'
+import { isOneDriveMusicInfo } from '@/core/oneDrive/utils'
 
 export interface PlayerPlaylistType {
   show: () => void;
@@ -47,6 +50,7 @@ export default forwardRef<PlayerPlaylistType, {}>((props, ref) => {
   const musicDownloadModalRef = useRef<MusicDownloadModalType>(null);
   const listMenuRef = useRef<ListMenuType>(null);
   const musicAddModalRef = useRef<MusicAddModalType>(null);
+  const similarSongsModalRef = useRef<SimilarSongsModalType>(null);
   const isShowAlbumName = useSettingValue('list.isShowAlbumName');
   const isShowInterval = useSettingValue('list.isShowInterval');
   const showCover = useSettingValue('list.isShowCover');
@@ -118,6 +122,7 @@ export default forwardRef<PlayerPlaylistType, {}>((props, ref) => {
 
   const renderItem = ({ item, index }: { item: LX.Player.PlayMusic, index: number }) => {
     const originalMusicInfo = ('progress' in item ? item.metadata.musicInfo : item);
+    const isOneDrive = isOneDriveMusicInfo(originalMusicInfo);
 
     // 将所有类型的 musicInfo 转换为 OnlineListItem 能安全渲染的结构
     const renderableMusicInfo: LX.Music.MusicInfoOnline = {
@@ -160,6 +165,7 @@ export default forwardRef<PlayerPlaylistType, {}>((props, ref) => {
         isShowInterval={isShowInterval}
         listId={listIdForIcon ?? undefined}
         showCover={showCover}
+        hideMenu={isOneDrive}
       />
     );
   };
@@ -205,6 +211,11 @@ export default forwardRef<PlayerPlaylistType, {}>((props, ref) => {
     });
   };
 
+  const onSimilarSongs = (info: SelectInfo) => {
+    panelRef.current?.setVisible(false);
+    similarSongsModalRef.current?.show(info.musicInfo);
+  };
+
   const onLike = (info: SelectInfo) => {
     if (info.musicInfo.source === 'wy') {
       handleLikeMusic(info.musicInfo as LX.Music.MusicInfoOnline);
@@ -217,6 +228,18 @@ export default forwardRef<PlayerPlaylistType, {}>((props, ref) => {
       handleShowMusicSourceDetail(info.musicInfo);
     });
   };
+
+  const onPlayMv = (info: SelectInfo) => {
+    const mvId = (info.musicInfo as LX.Music.MusicInfoOnline).meta.mv
+    if (!mvId) return
+
+    panelRef.current?.setVisible(false)
+    getMvUrl(mvId).then(data => {
+      global.app_event.showVideoPlayer(data.url)
+    }).catch(err => {
+      toast(err.message || '获取MV失败')
+    })
+  }
 
   const handlePanelHide = () => {
     setIsVisible(false);
@@ -262,10 +285,13 @@ export default forwardRef<PlayerPlaylistType, {}>((props, ref) => {
         onDislikeMusic={handleDislikeMusic}
         onArtistDetail={onArtistDetail}
         onAlbumDetail={onAlbumDetail}
+        onSimilarSongs={onSimilarSongs}
         onLike={onLike}
+        onPlayMv={onPlayMv}
       />
       <MusicAddModal ref={musicAddModalRef} />
       {settingState.setting['download.enable'] && <MusicDownloadModal ref={musicDownloadModalRef} onDownloadInfo={() => {}} />}
+      <SimilarSongsModal ref={similarSongsModalRef} />
     </>
   );
 });

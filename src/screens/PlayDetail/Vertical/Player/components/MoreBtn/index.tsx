@@ -15,6 +15,9 @@ import MusicAddModal, { type MusicAddModalType } from '@/components/MusicAddModa
 import MusicDownloadModal, { type MusicDownloadModalType } from '@/screens/Home/Views/Mylist/MusicList/MusicDownloadModal'
 import settingState from '@/store/setting/state'
 import {getMvUrl} from "@/utils/musicSdk/wy/mv.js";
+import SimilarSongsModal, { type SimilarSongsModalType } from '@/components/SimilarSongsModal'
+import { isOneDriveMusicInfo } from '@/core/oneDrive/utils'
+import { usePlayMusicInfo } from '@/store/player/hook'
 
 
 export default memo(({ componentId }: { componentId: string }) => {
@@ -22,6 +25,9 @@ export default memo(({ componentId }: { componentId: string }) => {
   const moreBtnRef = useRef<TouchableOpacity>(null);
   const musicAddModalRef = useRef<MusicAddModalType>(null);
   const musicDownloadModalRef = useRef<MusicDownloadModalType>(null);
+  const similarSongsModalRef = useRef<SimilarSongsModalType>(null);
+  const playMusicInfo = usePlayMusicInfo();
+  const isOneDrive = isOneDriveMusicInfo(playMusicInfo.musicInfo);
 
   // 监听歌曲变化，以便在菜单打开时能重新渲染以获取最新的“喜欢”状态
   useEffect(() => {
@@ -83,6 +89,10 @@ export default memo(({ componentId }: { componentId: string }) => {
     }
   };
 
+  const onSimilarSongs = (info: SelectInfo) => {
+    similarSongsModalRef.current?.show(info.musicInfo);
+  };
+
   const onMusicSourceDetail = (info: SelectInfo) => {
     void handleShowMusicSourceDetail(info.musicInfo);
   };
@@ -113,7 +123,7 @@ export default memo(({ componentId }: { componentId: string }) => {
         <DesktopLyricBtn />
         <MusicAddBtn />
         <PlayModeBtn />
-        <CommentBtn />
+        {isOneDrive ? null : <CommentBtn />}
         <Btn icon="dots-vertical" onPress={handleShowMenu} ref={moreBtnRef} />
       </View>
 
@@ -125,12 +135,14 @@ export default memo(({ componentId }: { componentId: string }) => {
         onCopyName={onCopyName}
         onArtistDetail={onArtistDetail}
         onAlbumDetail={onAlbumDetail}
+        onSimilarSongs={onSimilarSongs}
         onMusicSourceDetail={onMusicSourceDetail}
         onDislikeMusic={onDislikeMusic}
         onPlayMv={onPlayMv}
       />
       <MusicAddModal ref={musicAddModalRef} />
       {settingState.setting['download.enable'] && <MusicDownloadModal ref={musicDownloadModalRef} onDownloadInfo={() => {}} />}
+      <SimilarSongsModal ref={similarSongsModalRef} />
     </>
   )
 })
