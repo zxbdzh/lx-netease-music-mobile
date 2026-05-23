@@ -19,12 +19,14 @@ import { LIST_IDS, LIST_ITEM_HEIGHT } from '@/config/constant'
 import { scaleSizeH } from '@/utils/pixelRatio'
 import { overwriteListMusics } from '@/core/list'
 import { playList } from '@/core/player/player'
+import { getPicPath } from '@/core/music'
 import { usePlayMusicInfo } from '@/store/player/hook'
 import { updateSetting } from '@/core/common'
 import settingState from '@/store/setting/state'
 import {
   getWebDAVPlayConfig,
   resetWebDAVPlayClient,
+  saveWebDAVPlayConfig,
   testWebDAVPlayConnection,
 } from '@/core/webdavPlay/client'
 import {
@@ -62,16 +64,39 @@ const SongItem = memo(
     item,
     isPlaying,
     onPress,
+    onPicResolved,
   }: {
     item: LX.WebDAVPlay.MusicInfo
     isPlaying: boolean
     onPress: (musicInfo: LX.WebDAVPlay.MusicInfo) => void
+    onPicResolved: () => void
   }) => {
     const theme = useTheme()
+    const [picUrl, setPicUrl] = useState(item.meta.picUrl)
     const subText = item.singer || item.meta.filePath
     const sizeText = formatSize(item.meta.size)
     const timeText = formatBriefTime(item.meta.lastModifiedTime)
     const detailText = [sizeText, timeText].filter(Boolean).join(' · ')
+
+    // WebDAV 无缩略图,可见时从在线源懒加载封面并缓存回 meta
+    useEffect(() => {
+      if (item.meta.picUrl) {
+        setPicUrl(item.meta.picUrl)
+        return
+      }
+      let cancelled = false
+      void getPicPath({ musicInfo: item, listId: null })
+        .then((url) => {
+          if (cancelled || !url) return
+          item.meta.picUrl = url
+          setPicUrl(url)
+          onPicResolved()
+        })
+        .catch(() => {})
+      return () => {
+        cancelled = true
+      }
+    }, [item, onPicResolved])
 
     return (
       <View
@@ -82,7 +107,7 @@ const SongItem = memo(
       >
         <TouchableOpacity style={styles.songItemLeft} onPress={() => onPress(item)}>
           <View style={styles.sn}>
-            <Image url={item.meta.picUrl} style={styles.albumArt} cache={false} />
+            <Image url={picUrl} style={styles.albumArt} />
           </View>
           <View style={styles.itemInfo}>
             <Text color={isPlaying ? theme['c-primary-font'] : theme['c-font']} numberOfLines={1}>
@@ -309,15 +334,36 @@ export default memo(() => {
     [songs]
   )
 
+  // 懒加载封面会就地写入 song.meta.picUrl,防抖持久化到配置,避免每次进入列表都重新匹配
+  const songsRef = useRef(songs)
+  songsRef.current = songs
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handlePicResolved = useCallback(() => {
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      void getWebDAVPlayConfig().then((config) => {
+        config.songs = songsRef.current
+        void saveWebDAVPlayConfig(config)
+      })
+    }, 3000)
+  }, [])
+  useEffect(
+    () => () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    },
+    []
+  )
+
   const renderSong: ListRenderItem<LX.WebDAVPlay.MusicInfo> = useCallback(
     ({ item }) => (
       <SongItem
         item={item}
         isPlaying={playMusicInfo.musicInfo?.id === item.id}
         onPress={handlePlay}
+        onPicResolved={handlePicResolved}
       />
     ),
-    [handlePlay, playMusicInfo.musicInfo?.id]
+    [handlePlay, handlePicResolved, playMusicInfo.musicInfo?.id]
   )
 
   const headerText = useMemo(() => {

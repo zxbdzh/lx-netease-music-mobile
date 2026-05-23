@@ -1,8 +1,11 @@
 import { getPlayerLyric, saveLyric } from '@/utils/data'
+import { updateListMusics } from '@/core/list'
 import {
   buildLyricInfo,
   getOnlineOtherSourceLyricByLocal,
   getOnlineOtherSourceLyricInfo,
+  getOnlineOtherSourcePicByLocal,
+  getOnlineOtherSourcePicUrl,
   getOtherSource,
 } from '@/core/music/utils'
 import { buildWebDAVFileUrl } from './client'
@@ -18,11 +21,37 @@ export const getMusicUrl = async ({
 
 export const getPicUrl = async ({
   musicInfo,
+  isRefresh,
+  listId,
 }: {
   musicInfo: LX.WebDAVPlay.MusicInfo
   isRefresh: boolean
   listId?: string | null
 }): Promise<string> => {
+  if (!isRefresh && musicInfo.meta.picUrl) return musicInfo.meta.picUrl
+
+  // WebDAV 无缩略图,从在线源匹配封面
+  try {
+    return await getOnlineOtherSourcePicByLocal(musicInfo).then(({ url }) => url)
+  } catch {}
+
+  const otherSource = await getOtherSource(musicInfo, isRefresh)
+  if (otherSource.length) {
+    try {
+      return await getOnlineOtherSourcePicUrl({
+        musicInfos: [...otherSource],
+        onToggleSource() {},
+        isRefresh,
+      }).then(({ url }) => {
+        if (url && listId) {
+          musicInfo.meta.picUrl = url
+          void updateListMusics([{ id: listId, musicInfo }])
+        }
+        return url
+      })
+    } catch {}
+  }
+
   return musicInfo.meta.picUrl ?? ''
 }
 
