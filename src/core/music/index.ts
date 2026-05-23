@@ -18,6 +18,11 @@ import {
   getPicUrl as getOneDrivePicUrl,
   getLyricInfo as getOneDriveLyricInfo,
 } from '@/core/oneDrive/music'
+import {
+  getMusicUrl as getWebDAVMusicUrl,
+  getPicUrl as getWebDAVPicUrl,
+  getLyricInfo as getWebDAVLyricInfo,
+} from '@/core/webdavPlay/music'
 
 export const getMusicUrl = async ({
   musicInfo,
@@ -37,6 +42,9 @@ export const getMusicUrl = async ({
   } else if (musicInfo.source == 'local') {
     if ('oneDrive' in musicInfo.meta) {
       return getOneDriveMusicUrl({ musicInfo: musicInfo as LX.OneDrive.MusicInfo, isRefresh })
+    }
+    if ('webdav' in musicInfo.meta) {
+      return getWebDAVMusicUrl({ musicInfo: musicInfo as LX.WebDAVPlay.MusicInfo, isRefresh })
     }
     return getLocalMusicUrl({ musicInfo, isRefresh, onToggleSource, allowToggleSource })
   } else {
@@ -61,6 +69,9 @@ export const getPicPath = async ({
     if ('oneDrive' in musicInfo.meta) {
       return getOneDrivePicUrl({ musicInfo: musicInfo as LX.OneDrive.MusicInfo, isRefresh, listId })
     }
+    if ('webdav' in musicInfo.meta) {
+      return getWebDAVPicUrl({ musicInfo: musicInfo as LX.WebDAVPlay.MusicInfo, isRefresh, listId })
+    }
     return getLocalPicUrl({ musicInfo, isRefresh, listId, onToggleSource })
   } else {
     return getOnlinePicUrl({ musicInfo, isRefresh, listId, onToggleSource })
@@ -81,6 +92,9 @@ export const getLyricInfo = async ({
   } else if (musicInfo.source == 'local') {
     if ('oneDrive' in musicInfo.meta) {
       return getOneDriveLyricInfo({ musicInfo: musicInfo as LX.OneDrive.MusicInfo, isRefresh })
+    }
+    if ('webdav' in musicInfo.meta) {
+      return getWebDAVLyricInfo({ musicInfo: musicInfo as LX.WebDAVPlay.MusicInfo, isRefresh })
     }
     return getLocalLyricInfo({ musicInfo, isRefresh, onToggleSource })
   } else {

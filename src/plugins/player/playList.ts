@@ -4,6 +4,8 @@ import BackgroundTimer from 'react-native-background-timer'
 import { defaultUrl } from '@/config'
 // import { action as playerAction } from '@/store/modules/player'
 import settingState from '@/store/setting/state'
+import { isWebDAVMusicInfo } from '@/core/webdavPlay/utils'
+import { getWebDAVPlayCredentials } from '@/core/webdavPlay/client'
 
 
 const list: LX.Player.Track[] = []
@@ -43,6 +45,12 @@ const getTrackSource = (musicInfo: LX.Player.PlayMusic) => {
 
 const getTrackHeaders = (musicInfo: LX.Player.PlayMusic, url?: string) => {
   if (!url || !/^https?:\/\//.test(url) || wyMediaUrlRxp.test(url)) return undefined
+  if (isWebDAVMusicInfo(musicInfo)) {
+    const { username, password } = getWebDAVPlayCredentials()
+    if (!username) return undefined
+    const token = Buffer.from(`${username}:${password}`).toString('base64')
+    return { Authorization: `Basic ${token}` }
+  }
   const source = getTrackSource(musicInfo)
   return source === 'wy' ? wyStreamHeaders : undefined
 }

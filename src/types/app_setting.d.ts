@@ -410,6 +410,21 @@ declare global {
       'sync.webdav.password': string;
       'sync.webdav.path': string;
       'sync.webdav.lastSyncTimeLists': number;
+
+      /**
+       * WebDAV 远程播放-服务器地址
+       */
+      'webdavPlay.url': string
+
+      /**
+       * WebDAV 远程播放-用户名
+       */
+      'webdavPlay.username': string
+
+      /**
+       * WebDAV 远程播放-密码(凭证仅存 setting,不入 meta/storage)
+       */
+      'webdavPlay.password': string
     }
   }
 }

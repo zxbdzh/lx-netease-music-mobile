@@ -11,6 +11,7 @@ const SENSITIVE_SETTING_KEYS: Array<keyof LX.AppSetting> = [
   'common.wy_serpapi_key',
   'common.yt_cookie',
   'sync.webdav.password',
+  'webdavPlay.password',
 ];
 
 export const filterSensitiveSettingsForSync = (settings: Partial<LX.AppSetting>) => {

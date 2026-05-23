@@ -27,6 +27,7 @@ const defaultSetting: LX.AppSetting = {
     nav_followed_artists: true,
     nav_subscribed_albums: true,
     nav_onedrive: true,
+    nav_webdav: true,
   },
 
   'player.startupAutoPlay': false,
@@ -113,6 +114,10 @@ const defaultSetting: LX.AppSetting = {
   'sync.webdav.password': '',
   'sync.webdav.path': '/LX_Music/',
   'sync.webdav.lastSyncTimeLists': 0,
+
+  'webdavPlay.url': '',
+  'webdavPlay.username': '',
+  'webdavPlay.password': '',
 
   'theme.id': 'green',
   'theme.lightId': 'green',

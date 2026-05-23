@@ -80,6 +80,18 @@ const OneDriveIcon = ({ size, color }: { size: number; color: string }) => (
   </Svg>
 )
 
+const WebDAVIcon = ({ size, color }: { size: number; color: string }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    {/* 上层服务器 */}
+    <Rect x="3" y="4" width="18" height="7" rx="1.5" stroke={color} strokeWidth="1.6" fill="none" />
+    {/* 下层服务器 */}
+    <Rect x="3" y="13" width="18" height="7" rx="1.5" stroke={color} strokeWidth="1.6" fill="none" />
+    {/* 状态指示灯 */}
+    <Circle cx="7" cy="7.5" r="1.1" fill={color} />
+    <Circle cx="7" cy="16.5" r="1.1" fill={color} />
+  </Svg>
+)
+
 const HeartbeatIcon = ({ size, color }: { size: number; color: string }) => (
   <Svg width={size} height={size} viewBox="0 0 1165 1024" fill="none">
     <Path
@@ -109,6 +121,8 @@ export const SvgIcon = memo(({ name, size = 15, rawSize, color = '#000' }: SvgIc
       return <AlbumDiscIcon size={finalSize} color={color} />
     case 'onedrive':
       return <OneDriveIcon size={finalSize} color={color} />
+    case 'webdav':
+      return <WebDAVIcon size={finalSize} color={color} />
     case 'heartbeat':
       return <HeartbeatIcon size={finalSize} color={color} />
     default:
