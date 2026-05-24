@@ -78,7 +78,7 @@
   "list_download_to_webdav_failed": "下载到 WebDAV 失败：{message}",
   "list_download_to_webdav_not_configured": "请先在「WebDAV 播放」页配置连接并选择目录",
   "list_download_to_webdav_progress": "正在处理（{done}/{total}）：{current}",
-  "list_download_to_webdav_result": "上传完成：成功 {uploaded} 首，失败 {failed} 首",
+  "list_download_to_webdav_result": "上传完成：成功 {uploaded} 首，跳过 {skipped} 首，失败 {failed} 首",
   "list_download_to_webdav_start": "开始下载到 WebDAV，请勿退出应用",
   "list_edit_action_tip_add_failed": "添加失败",
   "list_edit_action_tip_add_success": "添加成功",

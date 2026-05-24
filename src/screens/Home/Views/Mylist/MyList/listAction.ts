@@ -134,8 +134,11 @@ export const handleDownloadToWebDAV = (listInfo: LX.List.MyListInfo) => {
           toast(global.i18n.t('list_download_to_webdav_progress', { done, total, current }))
         },
       })
-        .then(({ uploaded, failed }) => {
-          toast(global.i18n.t('list_download_to_webdav_result', { uploaded, failed }), 'long')
+        .then(({ uploaded, skipped, failed }) => {
+          toast(
+            global.i18n.t('list_download_to_webdav_result', { uploaded, skipped, failed }),
+            'long'
+          )
         })
         .catch((err: any) => {
           const message = err?.message ?? String(err)

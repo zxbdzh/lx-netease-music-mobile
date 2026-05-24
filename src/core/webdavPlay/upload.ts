@@ -15,10 +15,12 @@ import settingState from '@/store/setting/state'
 import { log } from '@/utils/log'
 import {
   ensureWebDAVDirectory,
+  getWebDAVJsonFile,
   getWebDAVPlayConfig,
   getWebDAVPlayCredentials,
   uploadWebDAVFile,
   uploadWebDAVFileFromPath,
+  webdavExists,
 } from './client'
 
 const DOWNLOAD_UA =
@@ -44,6 +46,7 @@ const resolveExt = (musicInfo: LX.Music.MusicInfo, quality: LX.Quality): string 
 
 interface UploadResult {
   uploaded: number
+  skipped: number
   failed: number
   folderPath: string
 }
@@ -76,13 +79,39 @@ export const downloadListToWebDAV = async ({
   const folderPath = joinPath(root.path, folderName)
   await ensureWebDAVDirectory(folderPath)
 
+  // 读现有 manifest,按 songId 建索引,用于跳过已存在歌曲
+  const existingManifest = await getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(
+    joinPath(folderPath, 'lx_playlist.json')
+  )
+  const existingBySongId = new Map<string, LX.WebDAVPlay.PlaylistManifestSong>()
+  if (existingManifest?.songs?.length) {
+    for (const s of existingManifest.songs) {
+      if (s.songId) existingBySongId.set(s.songId, s)
+    }
+  }
+
   const manifestSongs: LX.WebDAVPlay.PlaylistManifestSong[] = []
   let uploaded = 0
+  let skipped = 0
   let failed = 0
 
   for (let i = 0; i < songs.length; i++) {
     const musicInfo = songs[i]
     onProgress?.(i, songs.length, musicInfo.name)
+
+    // 稳妥跳过:songId 已在现有 manifest 且服务器上文件仍在,则复用旧条目不重传
+    const songId = String(musicInfo.meta.songId ?? musicInfo.id)
+    const existing = existingBySongId.get(songId)
+    if (existing) {
+      const fileOnServer = await webdavExists(
+        joinPath(folderPath, existing.fileName)
+      ).catch(() => false)
+      if (fileOnServer) {
+        manifestSongs.push(existing)
+        skipped++
+        continue
+      }
+    }
 
     const ext = resolveExt(musicInfo, targetQuality)
     const baseName = filterFileName(
@@ -159,7 +188,7 @@ export const downloadListToWebDAV = async ({
         albumName: musicInfo.meta.albumName ?? '',
         interval: musicInfo.interval ?? null,
         source: musicInfo.source,
-        songId: String(musicInfo.meta.songId ?? musicInfo.id),
+        songId,
         ext,
         picUrl: picUrlForManifest || undefined,
       })
@@ -188,5 +217,5 @@ export const downloadListToWebDAV = async ({
   )
 
   onProgress?.(songs.length, songs.length, '')
-  return { uploaded, failed, folderPath }
+  return { uploaded, skipped, failed, folderPath }
 }
