@@ -1,5 +1,6 @@
 import { createClient, type WebDAVClient } from 'webdav'
 import { Buffer } from '@craftzdog/react-native-buffer'
+import RNFetchBlob from 'rn-fetch-blob'
 import { getData, saveData } from '@/plugins/storage'
 import settingState from '@/store/setting/state'
 import { log } from '@/utils/log'
@@ -90,6 +91,33 @@ export const uploadWebDAVFile = async (
   if (!cli) throw new Error('WebDAV 未配置')
   const ok = await cli.putFileContents(remotePath, data as any, { overwrite: true })
   if (!ok) throw new Error(`上传失败: ${remotePath}`)
+}
+
+/**
+ * 从本地文件路径流式上传到 WebDAV(避免整文件读入内存导致 OOM)。
+ * 直接以 RNFetchBlob.wrap(localPath) 作为 PUT body,由原生分块读取;
+ * URL 复用 buildWebDAVFileUrl,与播放读路径保持一致;凭证仅运行时现取。
+ */
+export const uploadWebDAVFileFromPath = async (
+  remotePath: string,
+  localPath: string
+): Promise<void> => {
+  const { username, password } = getWebDAVPlayCredentials()
+  const token = Buffer.from(`${username}:${password}`).toString('base64')
+  const url = buildWebDAVFileUrl(remotePath)
+  const res = await RNFetchBlob.fetch(
+    'PUT',
+    url,
+    {
+      Authorization: `Basic ${token}`,
+      'Content-Type': 'application/octet-stream',
+    },
+    RNFetchBlob.wrap(localPath)
+  )
+  const status = res.info().status
+  if (status < 200 || status >= 300) {
+    throw new Error(`上传失败(${status}): ${remotePath}`)
+  }
 }
 
 /**

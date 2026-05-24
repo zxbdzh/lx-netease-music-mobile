@@ -18,6 +18,7 @@ import {
   getWebDAVPlayConfig,
   getWebDAVPlayCredentials,
   uploadWebDAVFile,
+  uploadWebDAVFileFromPath,
 } from './client'
 
 const DOWNLOAD_UA =
@@ -143,10 +144,8 @@ export const downloadListToWebDAV = async ({
         log.warn(`[webdav upload] 歌词处理失败: ${musicInfo.name}`)
       }
 
-      // 5. 读临时文件为 Buffer 上传音频
-      const base64 = await RNFetchBlob.fs.readFile(tmpAudio, 'base64')
-      const buf = Buffer.from(base64, 'base64')
-      await uploadWebDAVFile(joinPath(folderPath, audioFileName), buf)
+      // 5. 流式上传音频(直接从文件路径 PUT,避免整文件读入内存导致 OOM)
+      await uploadWebDAVFileFromPath(joinPath(folderPath, audioFileName), tmpAudio)
 
       // 6. 上传旁车 .lrc(文本)
       if (lrcContent) {
