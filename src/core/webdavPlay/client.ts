@@ -150,3 +150,21 @@ export const getWebDAVJsonFile = async <T>(remotePath: string): Promise<T | null
     return null
   }
 }
+
+/**
+ * 删除文件或目录(目录递归删除,WebDAV DELETE 对集合即递归)。
+ */
+export const deleteWebDAVFile = async (remotePath: string): Promise<void> => {
+  const cli = getClient()
+  if (!cli) throw new Error('WebDAV 未配置')
+  await cli.deleteFile(remotePath)
+}
+
+/**
+ * 移动/重命名文件或目录(用于歌单文件夹重命名)。
+ */
+export const moveWebDAVFile = async (from: string, to: string): Promise<void> => {
+  const cli = getClient()
+  if (!cli) throw new Error('WebDAV 未配置')
+  await cli.moveFile(from, to)
+}

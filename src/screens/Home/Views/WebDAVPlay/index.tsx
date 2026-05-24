@@ -13,6 +13,9 @@ import Text from '@/components/common/Text'
 import Button from '@/components/common/Button'
 import Image from '@/components/common/Image'
 import { Icon } from '@/components/common/Icon'
+import Menu, { type MenuType, type Menus, type Position } from '@/components/common/Menu'
+import ConfirmAlert, { type ConfirmAlertType } from '@/components/common/ConfirmAlert'
+import Input, { type InputType } from '@/components/common/Input'
 import { useTheme } from '@/store/theme/hook'
 import { confirmDialog, createStyle, toast } from '@/utils/tools'
 import { LIST_IDS, LIST_ITEM_HEIGHT } from '@/config/constant'
@@ -30,9 +33,13 @@ import {
   testWebDAVPlayConnection,
 } from '@/core/webdavPlay/client'
 import {
+  deleteWebDAVPlaylist,
+  deleteWebDAVPlaylistSong,
+  generateWebDAVPlaylistManifest,
   listWebDAVFolders,
   listWebDAVPlaylists,
   loadWebDAVPlaylist,
+  renameWebDAVPlaylist,
   saveWebDAVSelectedFolder,
   scanWebDAVSongs,
 } from '@/core/webdavPlay/drive'
@@ -40,6 +47,17 @@ import {
 type ActiveTab = 'config' | 'list'
 type ListMode = 'all' | 'playlists'
 const ITEM_HEIGHT = scaleSizeH(LIST_ITEM_HEIGHT)
+
+const PLAYLIST_MENUS = [
+  { action: 'rename', label: '重命名' },
+  { action: 'generate', label: '生成/更新清单' },
+  { action: 'delete', label: '删除歌单' },
+] as const
+const SONG_MENUS = [{ action: 'deleteSong', label: '从歌单移除' }] as const
+
+type MenuTarget =
+  | { type: 'playlist'; playlist: LX.WebDAVPlay.Playlist }
+  | { type: 'song'; song: LX.WebDAVPlay.MusicInfo; folder: LX.WebDAVPlay.DriveFolder }
 
 const formatTime = (time?: number) => {
   if (!time) return ''
@@ -68,18 +86,34 @@ const SongItem = memo(
     isPlaying,
     onPress,
     onPicResolved,
+    onShowMenu,
   }: {
     item: LX.WebDAVPlay.MusicInfo
     isPlaying: boolean
     onPress: (musicInfo: LX.WebDAVPlay.MusicInfo) => void
     onPicResolved: () => void
+    onShowMenu?: (musicInfo: LX.WebDAVPlay.MusicInfo, position: Position) => void
   }) => {
     const theme = useTheme()
     const [picUrl, setPicUrl] = useState(item.meta.picUrl)
+    const moreButtonRef = useRef<TouchableOpacity>(null)
     const subText = item.singer || item.meta.filePath
     const sizeText = formatSize(item.meta.size)
     const timeText = formatBriefTime(item.meta.lastModifiedTime)
     const detailText = [sizeText, timeText].filter(Boolean).join(' · ')
+
+    const handleShowMenu = () => {
+      if (moreButtonRef.current?.measure) {
+        moreButtonRef.current.measure((fx, fy, width, height, px, py) => {
+          onShowMenu?.(item, {
+            x: Math.ceil(px),
+            y: Math.ceil(py),
+            w: Math.ceil(width),
+            h: Math.ceil(height),
+          })
+        })
+      }
+    }
 
     // WebDAV 无缩略图,可见时从在线源懒加载封面并缓存回 meta
     useEffect(() => {
@@ -133,6 +167,11 @@ const SongItem = memo(
             ) : null}
           </View>
         </TouchableOpacity>
+        {onShowMenu ? (
+          <TouchableOpacity ref={moreButtonRef} style={styles.headerIconButton} onPress={handleShowMenu}>
+            <Icon name="dots-vertical" size={16} color={theme['c-font-label']} />
+          </TouchableOpacity>
+        ) : null}
       </View>
     )
   }
@@ -142,26 +181,45 @@ const PlaylistItem = memo(
   ({
     item,
     onPress,
+    onShowMenu,
   }: {
     item: LX.WebDAVPlay.Playlist
     onPress: (playlist: LX.WebDAVPlay.Playlist) => void
+    onShowMenu: (playlist: LX.WebDAVPlay.Playlist, position: Position) => void
   }) => {
     const theme = useTheme()
+    const moreButtonRef = useRef<TouchableOpacity>(null)
+
+    const handleShowMenu = () => {
+      if (moreButtonRef.current?.measure) {
+        moreButtonRef.current.measure((fx, fy, width, height, px, py) => {
+          onShowMenu(item, {
+            x: Math.ceil(px),
+            y: Math.ceil(py),
+            w: Math.ceil(width),
+            h: Math.ceil(height),
+          })
+        })
+      }
+    }
+
     return (
-      <TouchableOpacity
-        style={{ ...styles.playlistItem, borderBottomColor: theme['c-border-background'] }}
-        onPress={() => onPress(item)}
-      >
-        <View style={styles.playlistIcon}>
-          <Icon name="album" size={22} color={theme['c-primary-font']} />
-        </View>
-        <View style={styles.itemInfo}>
-          <Text numberOfLines={1}>{item.name}</Text>
-          <Text size={11} color={theme['c-font-label']} numberOfLines={1}>
-            {item.hasManifest ? `${item.songCount} 首` : '未生成歌单清单'}
-          </Text>
-        </View>
-      </TouchableOpacity>
+      <View style={{ ...styles.playlistItem, borderBottomColor: theme['c-border-background'] }}>
+        <TouchableOpacity style={styles.playlistMain} onPress={() => onPress(item)}>
+          <View style={styles.playlistIcon}>
+            <Icon name="album" size={22} color={theme['c-primary-font']} />
+          </View>
+          <View style={styles.itemInfo}>
+            <Text numberOfLines={1}>{item.name}</Text>
+            <Text size={11} color={theme['c-font-label']} numberOfLines={1}>
+              {item.hasManifest ? `${item.songCount} 首` : '未生成歌单清单'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity ref={moreButtonRef} style={styles.headerIconButton} onPress={handleShowMenu}>
+          <Icon name="dots-vertical" size={16} color={theme['c-font-label']} />
+        </TouchableOpacity>
+      </View>
     )
   }
 )
@@ -194,6 +252,14 @@ export default memo(() => {
   const [currentPlaylist, setCurrentPlaylist] = useState<LX.WebDAVPlay.Playlist | null>(null)
   const [playlistSongs, setPlaylistSongs] = useState<LX.WebDAVPlay.MusicInfo[]>([])
   const [playlistSongsLoading, setPlaylistSongsLoading] = useState(false)
+
+  const menuRef = useRef<MenuType>(null)
+  const menuTargetRef = useRef<MenuTarget | null>(null)
+  const [menuItems, setMenuItems] = useState<Menus>(PLAYLIST_MENUS)
+  const renameAlertRef = useRef<ConfirmAlertType>(null)
+  const renameInputRef = useRef<InputType>(null)
+  const renameTargetRef = useRef<LX.WebDAVPlay.Playlist | null>(null)
+  const [renameText, setRenameText] = useState('')
 
   const currentFolder = folderStack.at(-1) ?? null
 
@@ -427,6 +493,114 @@ export default memo(() => {
 
   const noop = useCallback(() => {}, [])
 
+  const showPlaylistMenu = useCallback((playlist: LX.WebDAVPlay.Playlist, position: Position) => {
+    menuTargetRef.current = { type: 'playlist', playlist }
+    setMenuItems(PLAYLIST_MENUS)
+    menuRef.current?.show(position)
+  }, [])
+
+  const showSongMenu = useCallback(
+    (song: LX.WebDAVPlay.MusicInfo, position: Position) => {
+      const folder = currentPlaylist?.folder
+      if (!folder) return
+      menuTargetRef.current = { type: 'song', song, folder }
+      setMenuItems(SONG_MENUS)
+      menuRef.current?.show(position)
+    },
+    [currentPlaylist]
+  )
+
+  const handleRenameConfirm = useCallback(() => {
+    const playlist = renameTargetRef.current
+    if (!playlist) return
+    const newName = renameText.trim()
+    if (!newName) {
+      toast('请输入歌单名称')
+      return
+    }
+    renameAlertRef.current?.setVisible(false)
+    void renameWebDAVPlaylist(playlist.folder, newName)
+      .then((newFolder) => {
+        toast('已重命名')
+        setCurrentPlaylist((prev) =>
+          prev && prev.folder.path === playlist.folder.path
+            ? { ...prev, folder: newFolder, name: newName }
+            : prev
+        )
+        loadPlaylists()
+      })
+      .catch((err: any) => toast(err.message ?? String(err), 'long'))
+  }, [renameText, loadPlaylists])
+
+  const handleMenuPress = useCallback(
+    (menu: Menus[number]) => {
+      const target = menuTargetRef.current
+      if (!target) return
+      switch (menu.action) {
+        case 'rename': {
+          if (target.type !== 'playlist') return
+          renameTargetRef.current = target.playlist
+          setRenameText(target.playlist.name)
+          renameAlertRef.current?.setVisible(true)
+          requestAnimationFrame(() => {
+            setTimeout(() => renameInputRef.current?.focus(), 300)
+          })
+          break
+        }
+        case 'generate': {
+          if (target.type !== 'playlist') return
+          const folder = target.playlist.folder
+          toast('正在生成清单...')
+          void generateWebDAVPlaylistManifest(folder)
+            .then((count) => {
+              toast(`清单已更新:${count} 首`)
+              loadPlaylists()
+            })
+            .catch((err: any) => toast(err.message ?? String(err), 'long'))
+          break
+        }
+        case 'delete': {
+          if (target.type !== 'playlist') return
+          const playlist = target.playlist
+          void confirmDialog({
+            title: '删除歌单',
+            message: `确定删除歌单「${playlist.name}」?将删除服务器上整个文件夹(含歌曲/歌词/清单),不可恢复。`,
+            confirmButtonText: '删除',
+          }).then((confirmed) => {
+            if (!confirmed) return
+            void deleteWebDAVPlaylist(playlist.folder)
+              .then(() => {
+                toast('已删除歌单')
+                if (currentPlaylist?.folder.path === playlist.folder.path) setCurrentPlaylist(null)
+                loadPlaylists()
+              })
+              .catch((err: any) => toast(err.message ?? String(err), 'long'))
+          })
+          break
+        }
+        case 'deleteSong': {
+          if (target.type !== 'song') return
+          const { song, folder } = target
+          void confirmDialog({
+            title: '移除歌曲',
+            message: `确定从歌单移除「${song.name || song.meta.fileName}」?将删除服务器上该歌曲文件及歌词。`,
+            confirmButtonText: '移除',
+          }).then((confirmed) => {
+            if (!confirmed) return
+            void deleteWebDAVPlaylistSong(folder, song)
+              .then(() => {
+                toast('已移除歌曲')
+                setPlaylistSongs((prev) => prev.filter((s) => s.id !== song.id))
+              })
+              .catch((err: any) => toast(err.message ?? String(err), 'long'))
+          })
+          break
+        }
+      }
+    },
+    [currentPlaylist, loadPlaylists]
+  )
+
   // 懒加载封面会就地写入 song.meta.picUrl,防抖持久化到配置,避免每次进入列表都重新匹配
   const songsRef = useRef(songs)
   songsRef.current = songs
@@ -466,14 +640,17 @@ export default memo(() => {
         isPlaying={playMusicInfo.musicInfo?.id === item.id}
         onPress={handlePlayPlaylistSong}
         onPicResolved={noop}
+        onShowMenu={showSongMenu}
       />
     ),
-    [handlePlayPlaylistSong, noop, playMusicInfo.musicInfo?.id]
+    [handlePlayPlaylistSong, noop, showSongMenu, playMusicInfo.musicInfo?.id]
   )
 
   const renderPlaylist: ListRenderItem<LX.WebDAVPlay.Playlist> = useCallback(
-    ({ item }) => <PlaylistItem item={item} onPress={handleOpenPlaylist} />,
-    [handleOpenPlaylist]
+    ({ item }) => (
+      <PlaylistItem item={item} onPress={handleOpenPlaylist} onShowMenu={showPlaylistMenu} />
+    ),
+    [handleOpenPlaylist, showPlaylistMenu]
   )
 
   const headerText = useMemo(() => {
@@ -830,6 +1007,24 @@ export default memo(() => {
         </TouchableOpacity>
       </View>
       {activeTab === 'config' ? renderConfig() : renderList()}
+      <Menu ref={menuRef} menus={menuItems} onPress={handleMenuPress} />
+      <ConfirmAlert
+        ref={renameAlertRef}
+        title="重命名歌单"
+        bgHide={false}
+        onConfirm={handleRenameConfirm}
+      >
+        <View style={styles.renameDialog}>
+          <Input
+            ref={renameInputRef}
+            value={renameText}
+            onChangeText={setRenameText}
+            placeholder="请输入歌单名称"
+            clearBtn
+            style={{ ...styles.renameInput, borderColor: theme['c-border-background'] }}
+          />
+        </View>
+      </ConfirmAlert>
     </View>
   )
 })
@@ -1002,9 +1197,24 @@ const styles = createStyle({
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingRight: 12,
   },
+  playlistMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   playlistIcon: {
     width: 70,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  renameDialog: {
+    paddingHorizontal: 5,
+    paddingVertical: 8,
+  },
+  renameInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 4,
+    height: 38,
+    paddingHorizontal: 8,
   },
 })

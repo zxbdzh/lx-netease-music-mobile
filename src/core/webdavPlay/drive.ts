@@ -1,10 +1,15 @@
 import type { FileStat } from 'webdav'
 import {
+  deleteWebDAVFile,
   getClient,
   getWebDAVJsonFile,
   getWebDAVPlayConfig,
+  moveWebDAVFile,
   saveWebDAVPlayConfig,
+  uploadWebDAVFile,
+  webdavExists,
 } from './client'
+import { filterFileName } from '@/utils'
 
 const PLAYLIST_MANIFEST = 'lx_playlist.json'
 
@@ -195,4 +200,122 @@ export const loadWebDAVPlaylist = async (
     .filter(item => item.type === 'file' && audioExts.has(getExt(item.basename)))
     .map(toMusicInfo)
     .sort((a, b) => b.meta.lastModifiedTime - a.meta.lastModifiedTime)
+}
+
+/**
+ * 手动生成/刷新歌单清单 lx_playlist.json:扫描该文件夹音频文件重建 songs。
+ * 已有 manifest 时按 fileName 保留原有富元数据(songId/albumName/picUrl/interval/source),
+ * 仅补充新增文件、剔除已删除文件,并刷新 updateTime;createTime/name 沿用原值。
+ * 返回写入后的曲目数。
+ */
+export const generateWebDAVPlaylistManifest = async (
+  folder: LX.WebDAVPlay.DriveFolder
+): Promise<number> => {
+  const items = await getDirectoryItems(folder.path)
+  const audioFiles = items.filter(
+    item => item.type === 'file' && audioExts.has(getExt(item.basename))
+  )
+
+  const manifestPath = joinPath(folder.path, PLAYLIST_MANIFEST)
+  const existing = await getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(manifestPath)
+  const existingByFileName = new Map<string, LX.WebDAVPlay.PlaylistManifestSong>()
+  if (existing?.songs?.length) {
+    for (const s of existing.songs) existingByFileName.set(s.fileName, s)
+  }
+
+  const now = Date.now()
+  const songs: LX.WebDAVPlay.PlaylistManifestSong[] = audioFiles.map(item => {
+    const kept = existingByFileName.get(item.basename)
+    if (kept) return kept
+    const info = toMusicInfo(item)
+    return {
+      fileName: item.basename,
+      name: info.name,
+      singer: info.singer,
+      albumName: '',
+      interval: null,
+      source: 'local',
+      songId: String(info.meta.songId),
+      ext: info.meta.ext,
+      picUrl: '',
+    }
+  })
+
+  const manifest: LX.WebDAVPlay.PlaylistManifest = {
+    version: 1,
+    name: existing?.name || folder.name,
+    createTime: existing?.createTime || now,
+    updateTime: now,
+    songs,
+  }
+  await uploadWebDAVFile(manifestPath, JSON.stringify(manifest, null, 2))
+  return songs.length
+}
+
+const getParentPath = (path: string): string => {
+  const trimmed = path.replace(/\/+$/, '')
+  const idx = trimmed.lastIndexOf('/')
+  return idx > 0 ? trimmed.slice(0, idx) : ''
+}
+
+const stripExt = (fileName: string): string => {
+  const dot = fileName.lastIndexOf('.')
+  return dot > 0 ? fileName.slice(0, dot) : fileName
+}
+
+/**
+ * 删除整个歌单:递归删除该文件夹(含音频/.lrc/lx_playlist.json)。不可恢复。
+ */
+export const deleteWebDAVPlaylist = async (folder: LX.WebDAVPlay.DriveFolder): Promise<void> => {
+  await deleteWebDAVFile(folder.path)
+}
+
+/**
+ * 删除歌单内单曲:删音频文件 + 同名 .lrc(若存在),并重写 manifest 移除该条记录。
+ */
+export const deleteWebDAVPlaylistSong = async (
+  folder: LX.WebDAVPlay.DriveFolder,
+  song: LX.WebDAVPlay.MusicInfo
+): Promise<void> => {
+  const fileName = song.meta.fileName
+  await deleteWebDAVFile(joinPath(folder.path, fileName))
+  // 旁车歌词可能不存在,忽略其删除错误
+  await deleteWebDAVFile(joinPath(folder.path, `${stripExt(fileName)}.lrc`)).catch(() => {})
+
+  const manifestPath = joinPath(folder.path, PLAYLIST_MANIFEST)
+  const manifest = await getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(manifestPath)
+  if (manifest) {
+    manifest.songs = manifest.songs.filter(s => s.fileName !== fileName)
+    manifest.updateTime = Date.now()
+    await uploadWebDAVFile(manifestPath, JSON.stringify(manifest, null, 2))
+  }
+}
+
+/**
+ * 重命名歌单:MOVE 整个文件夹到新名,并更新 manifest 的 name(保留用户原始输入)。
+ * 文件夹名用 filterFileName 过滤非法字符;manifest.name 存原始展示名。
+ */
+export const renameWebDAVPlaylist = async (
+  folder: LX.WebDAVPlay.DriveFolder,
+  newName: string
+): Promise<LX.WebDAVPlay.DriveFolder> => {
+  const safeName = filterFileName(newName.trim())
+  if (!safeName) throw new Error('名称无效')
+  const parent = getParentPath(folder.path)
+  const newPath = parent ? joinPath(parent, safeName) : `/${safeName}`
+
+  if (newPath !== folder.path) {
+    if (await webdavExists(newPath)) throw new Error('已存在同名歌单')
+    await moveWebDAVFile(folder.path, newPath)
+  }
+
+  const manifestPath = joinPath(newPath, PLAYLIST_MANIFEST)
+  const manifest = await getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(manifestPath)
+  if (manifest) {
+    manifest.name = newName.trim()
+    manifest.updateTime = Date.now()
+    await uploadWebDAVFile(manifestPath, JSON.stringify(manifest, null, 2))
+  }
+
+  return { path: newPath, name: safeName }
 }
