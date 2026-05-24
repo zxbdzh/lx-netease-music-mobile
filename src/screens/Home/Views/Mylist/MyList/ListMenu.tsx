@@ -26,6 +26,7 @@ export interface ListMenuProps {
   onExport: (listInfo: LX.List.MyListInfo, index: number) => void
   onSync: (listInfo: LX.List.UserListInfo) => void
   onSelectLocalFile: (listInfo: LX.List.MyListInfo, index: number) => void
+  onDownloadToWebDAV: (listInfo: LX.List.MyListInfo) => void
   onRemove: (listInfo: LX.List.UserListInfo) => void
 }
 export interface ListMenuType {
@@ -45,6 +46,7 @@ export default forwardRef<ListMenuType, ListMenuProps>(
       onExport,
       onSync,
       onSelectLocalFile,
+      onDownloadToWebDAV,
       onRemove,
     },
     ref
@@ -96,6 +98,7 @@ export default forwardRef<ListMenuType, ListMenuProps>(
         { action: 'sync', disabled: !sync || !local_file, label: t('list_sync') },
         { action: 'import', label: t('list_import') },
         { action: 'export', label: t('list_export') },
+        { action: 'downloadToWebDAV', label: t('list_download_to_webdav') },
         // { action: 'changePosition', label: t('change_position') },
         { action: 'remove', disabled: !remove, label: t('list_remove') },
       ])
@@ -130,6 +133,9 @@ export default forwardRef<ListMenuType, ListMenuProps>(
         //   break
         case 'local_file':
           onSelectLocalFile(selectInfo.listInfo, selectInfo.index)
+          break
+        case 'downloadToWebDAV':
+          onDownloadToWebDAV(selectInfo.listInfo)
           break
         case 'remove':
           onRemove(selectInfo.listInfo as LX.List.UserListInfo)

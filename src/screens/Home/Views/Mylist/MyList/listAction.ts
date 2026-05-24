@@ -15,6 +15,8 @@ import {readMetadata, scanAudioFiles, type MusicMetadataFull, readPic} from '@/u
 import settingState from '@/store/setting/state'
 import BackgroundTimer from 'react-native-background-timer'
 import { type FileType } from '@/utils/fs'
+import { getWebDAVBaseUrl, getWebDAVPlayConfig } from '@/core/webdavPlay/client'
+import { downloadListToWebDAV } from '@/core/webdavPlay/upload'
 
 export const handleRemove = (listInfo: LX.List.UserListInfo) => {
   void confirmDialog({
@@ -106,6 +108,41 @@ export const handleSync = (listInfo: LX.List.UserListInfo) => {
       .catch(() => {
         toast(global.i18n.t('list_update_error', { name: listInfo.name }))
       })
+  })
+}
+
+export const handleDownloadToWebDAV = (listInfo: LX.List.MyListInfo) => {
+  void getWebDAVPlayConfig().then((config) => {
+    if (!getWebDAVBaseUrl() || !config.selectedFolder) {
+      toast(global.i18n.t('list_download_to_webdav_not_configured'), 'long')
+      return
+    }
+    void confirmDialog({
+      message: global.i18n.t('list_download_to_webdav_confirm', { name: listInfo.name }),
+      confirmButtonText: global.i18n.t('list_download_to_webdav_confirm_button'),
+    }).then((confirmed) => {
+      if (!confirmed) return
+      toast(global.i18n.t('list_download_to_webdav_start'), 'long')
+      let lastShow = 0
+      void downloadListToWebDAV({
+        listId: listInfo.id,
+        playlistName: listInfo.name,
+        onProgress: (done, total, current) => {
+          const now = Date.now()
+          if (now - lastShow < 1500) return
+          lastShow = now
+          toast(global.i18n.t('list_download_to_webdav_progress', { done, total, current }))
+        },
+      })
+        .then(({ uploaded, failed }) => {
+          toast(global.i18n.t('list_download_to_webdav_result', { uploaded, failed }), 'long')
+        })
+        .catch((err: any) => {
+          const message = err?.message ?? String(err)
+          log.error(`[webdav download] ${message}`)
+          toast(global.i18n.t('list_download_to_webdav_failed', { message }), 'long')
+        })
+    })
   })
 }
 

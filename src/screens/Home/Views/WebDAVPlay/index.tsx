@@ -31,11 +31,14 @@ import {
 } from '@/core/webdavPlay/client'
 import {
   listWebDAVFolders,
+  listWebDAVPlaylists,
+  loadWebDAVPlaylist,
   saveWebDAVSelectedFolder,
   scanWebDAVSongs,
 } from '@/core/webdavPlay/drive'
 
 type ActiveTab = 'config' | 'list'
+type ListMode = 'all' | 'playlists'
 const ITEM_HEIGHT = scaleSizeH(LIST_ITEM_HEIGHT)
 
 const formatTime = (time?: number) => {
@@ -135,6 +138,34 @@ const SongItem = memo(
   }
 )
 
+const PlaylistItem = memo(
+  ({
+    item,
+    onPress,
+  }: {
+    item: LX.WebDAVPlay.Playlist
+    onPress: (playlist: LX.WebDAVPlay.Playlist) => void
+  }) => {
+    const theme = useTheme()
+    return (
+      <TouchableOpacity
+        style={{ ...styles.playlistItem, borderBottomColor: theme['c-border-background'] }}
+        onPress={() => onPress(item)}
+      >
+        <View style={styles.playlistIcon}>
+          <Icon name="album" size={22} color={theme['c-primary-font']} />
+        </View>
+        <View style={styles.itemInfo}>
+          <Text numberOfLines={1}>{item.name}</Text>
+          <Text size={11} color={theme['c-font-label']} numberOfLines={1}>
+            {item.hasManifest ? `${item.songCount} 首` : '未生成歌单清单'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    )
+  }
+)
+
 export default memo(() => {
   const theme = useTheme()
   const playMusicInfo = usePlayMusicInfo()
@@ -156,6 +187,13 @@ export default memo(() => {
   const [searchText, setSearchText] = useState('')
   const listRef = useRef<FlatList<LX.WebDAVPlay.MusicInfo>>(null)
   const searchInputRef = useRef<TextInput>(null)
+
+  const [listMode, setListMode] = useState<ListMode>('all')
+  const [playlists, setPlaylists] = useState<LX.WebDAVPlay.Playlist[]>([])
+  const [playlistsLoading, setPlaylistsLoading] = useState(false)
+  const [currentPlaylist, setCurrentPlaylist] = useState<LX.WebDAVPlay.Playlist | null>(null)
+  const [playlistSongs, setPlaylistSongs] = useState<LX.WebDAVPlay.MusicInfo[]>([])
+  const [playlistSongsLoading, setPlaylistSongsLoading] = useState(false)
 
   const currentFolder = folderStack.at(-1) ?? null
 
@@ -323,16 +361,71 @@ export default memo(() => {
     runScan()
   }, [connected, selectedFolder])
 
-  const handlePlay = useCallback(
-    (musicInfo: LX.WebDAVPlay.MusicInfo) => {
-      const index = songs.findIndex(item => item.id === musicInfo.id)
+  const playSongs = useCallback(
+    (list: LX.WebDAVPlay.MusicInfo[], musicInfo: LX.WebDAVPlay.MusicInfo) => {
+      const index = list.findIndex(item => item.id === musicInfo.id)
       if (index < 0) return
-      void overwriteListMusics(LIST_IDS.TEMP, songs).then(() => {
+      void overwriteListMusics(LIST_IDS.TEMP, list).then(() => {
         void playList(LIST_IDS.TEMP, index)
       })
     },
-    [songs]
+    []
   )
+
+  const handlePlay = useCallback(
+    (musicInfo: LX.WebDAVPlay.MusicInfo) => {
+      playSongs(songs, musicInfo)
+    },
+    [playSongs, songs]
+  )
+
+  const handlePlayPlaylistSong = useCallback(
+    (musicInfo: LX.WebDAVPlay.MusicInfo) => {
+      playSongs(playlistSongs, musicInfo)
+    },
+    [playSongs, playlistSongs]
+  )
+
+  const loadPlaylists = useCallback(() => {
+    if (!selectedFolder) {
+      setPlaylists([])
+      return
+    }
+    setPlaylistsLoading(true)
+    void listWebDAVPlaylists(selectedFolder)
+      .then(setPlaylists)
+      .catch((err: any) => {
+        toast(err.message ?? String(err), 'long')
+      })
+      .finally(() => {
+        setPlaylistsLoading(false)
+      })
+  }, [selectedFolder])
+
+  const handleSwitchListMode = useCallback(
+    (mode: ListMode) => {
+      setListMode(mode)
+      setCurrentPlaylist(null)
+      if (mode === 'playlists') loadPlaylists()
+    },
+    [loadPlaylists]
+  )
+
+  const handleOpenPlaylist = useCallback((playlist: LX.WebDAVPlay.Playlist) => {
+    setCurrentPlaylist(playlist)
+    setPlaylistSongs([])
+    setPlaylistSongsLoading(true)
+    void loadWebDAVPlaylist(playlist.folder)
+      .then(setPlaylistSongs)
+      .catch((err: any) => {
+        toast(err.message ?? String(err), 'long')
+      })
+      .finally(() => {
+        setPlaylistSongsLoading(false)
+      })
+  }, [])
+
+  const noop = useCallback(() => {}, [])
 
   // 懒加载封面会就地写入 song.meta.picUrl,防抖持久化到配置,避免每次进入列表都重新匹配
   const songsRef = useRef(songs)
@@ -364,6 +457,23 @@ export default memo(() => {
       />
     ),
     [handlePlay, handlePicResolved, playMusicInfo.musicInfo?.id]
+  )
+
+  const renderPlaylistSong: ListRenderItem<LX.WebDAVPlay.MusicInfo> = useCallback(
+    ({ item }) => (
+      <SongItem
+        item={item}
+        isPlaying={playMusicInfo.musicInfo?.id === item.id}
+        onPress={handlePlayPlaylistSong}
+        onPicResolved={noop}
+      />
+    ),
+    [handlePlayPlaylistSong, noop, playMusicInfo.musicInfo?.id]
+  )
+
+  const renderPlaylist: ListRenderItem<LX.WebDAVPlay.Playlist> = useCallback(
+    ({ item }) => <PlaylistItem item={item} onPress={handleOpenPlaylist} />,
+    [handleOpenPlaylist]
   )
 
   const headerText = useMemo(() => {
@@ -538,8 +648,24 @@ export default memo(() => {
     </ScrollView>
   )
 
-  const renderList = () => (
-    <View style={styles.listPage}>
+  const renderModeBar = () => (
+    <View style={{ ...styles.modeBar, borderBottomColor: theme['c-border-background'] }}>
+      <TouchableOpacity style={styles.modeTab} onPress={() => handleSwitchListMode('all')}>
+        <Text color={listMode === 'all' ? theme['c-primary-font'] : theme['c-font']}>全部歌曲</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.modeTab} onPress={() => handleSwitchListMode('playlists')}>
+        <Text color={listMode === 'playlists' ? theme['c-primary-font'] : theme['c-font']}>歌单</Text>
+      </TouchableOpacity>
+      {listMode === 'playlists' && !currentPlaylist ? (
+        <TouchableOpacity style={styles.headerIconButton} onPress={loadPlaylists}>
+          <Text size={12} color={theme['c-primary-font']}>刷新</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  )
+
+  const renderAllSongs = () => (
+    <>
       <View style={{ ...styles.listHeader, borderBottomColor: theme['c-border-background'] }}>
         <View style={styles.listHeaderText}>
           {searchVisible ? (
@@ -602,6 +728,70 @@ export default memo(() => {
           </View>
         }
       />
+    </>
+  )
+
+  const renderPlaylistsView = () => {
+    if (currentPlaylist) {
+      return (
+        <>
+          <View style={{ ...styles.listHeader, borderBottomColor: theme['c-border-background'] }}>
+            <TouchableOpacity
+              style={styles.backButton}
+              activeOpacity={0.6}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+              onPress={() => setCurrentPlaylist(null)}
+            >
+              <Icon name="chevron-left" size={18} color={theme['c-primary-font']} />
+              <Text size={14} color={theme['c-primary-font']}>返回</Text>
+            </TouchableOpacity>
+            <View style={styles.listHeaderText}>
+              <Text numberOfLines={1}>{currentPlaylist.name}</Text>
+              <Text size={11} color={theme['c-font-label']} numberOfLines={1}>
+                {playlistSongsLoading ? '正在加载...' : `${playlistSongs.length} 首`}
+              </Text>
+            </View>
+          </View>
+          <FlatList
+            data={playlistSongs}
+            renderItem={renderPlaylistSong}
+            keyExtractor={item => item.id}
+            getItemLayout={(data, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Text color={theme['c-font-label']}>
+                  {playlistSongsLoading ? '正在加载...' : '该歌单暂无歌曲'}
+                </Text>
+              </View>
+            }
+          />
+        </>
+      )
+    }
+    return (
+      <FlatList
+        data={playlists}
+        renderItem={renderPlaylist}
+        keyExtractor={item => item.folder.path}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text color={theme['c-font-label']}>
+              {playlistsLoading
+                ? '正在加载...'
+                : selectedFolder
+                  ? '没有歌单,可在「我的歌单」菜单一键下载生成'
+                  : '请先在配置页选择目录'}
+            </Text>
+          </View>
+        }
+      />
+    )
+  }
+
+  const renderList = () => (
+    <View style={styles.listPage}>
+      {renderModeBar()}
+      {listMode === 'all' ? renderAllSongs() : renderPlaylistsView()}
     </View>
   )
 
@@ -737,6 +927,14 @@ const styles = createStyle({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 38,
+    paddingLeft: 2,
+    paddingRight: 12,
+    marginRight: 4,
+  },
   scanButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -784,6 +982,28 @@ const styles = createStyle({
   },
   empty: {
     height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 12,
+  },
+  modeTab: {
+    paddingVertical: 10,
+    paddingRight: 18,
+  },
+  playlistItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: ITEM_HEIGHT,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingRight: 12,
+  },
+  playlistIcon: {
+    width: 70,
     alignItems: 'center',
     justifyContent: 'center',
   },

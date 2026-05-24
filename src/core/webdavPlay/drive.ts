@@ -1,5 +1,12 @@
 import type { FileStat } from 'webdav'
-import { getClient, getWebDAVPlayConfig, saveWebDAVPlayConfig } from './client'
+import {
+  getClient,
+  getWebDAVJsonFile,
+  getWebDAVPlayConfig,
+  saveWebDAVPlayConfig,
+} from './client'
+
+const PLAYLIST_MANIFEST = 'lx_playlist.json'
 
 const audioExts = new Set([
   'mp3',
@@ -119,4 +126,73 @@ export const scanWebDAVSongs = async (
   config.scannedAt = Date.now()
   await saveWebDAVPlayConfig(config)
   return config
+}
+
+const joinPath = (dir: string, name: string) => `${dir.replace(/\/+$/, '')}/${name}`
+
+// manifest 歌曲记录 → 可播放的 WebDAV MusicInfo(source 固定 local,靠 meta.webdav 路由)
+const manifestSongToMusicInfo = (
+  folder: LX.WebDAVPlay.DriveFolder,
+  song: LX.WebDAVPlay.PlaylistManifestSong
+): LX.WebDAVPlay.MusicInfo => {
+  const filePath = joinPath(folder.path, song.fileName)
+  return {
+    id: `webdav_${filePath}`,
+    name: song.name,
+    singer: song.singer,
+    source: 'local',
+    interval: song.interval,
+    meta: {
+      songId: song.songId || filePath,
+      albumName: song.albumName ?? '',
+      webdav: true,
+      filePath,
+      fileName: song.fileName,
+      ext: song.ext,
+      picUrl: song.picUrl ?? '',
+      lastModifiedTime: 0,
+    },
+  }
+}
+
+/**
+ * 列出 root 下的子文件夹作为歌单;读取各自的 lx_playlist.json 判定 hasManifest 与曲目数。
+ */
+export const listWebDAVPlaylists = async (
+  root?: LX.WebDAVPlay.DriveFolder | null
+): Promise<LX.WebDAVPlay.Playlist[]> => {
+  const folders = await listWebDAVFolders(root)
+  const playlists: LX.WebDAVPlay.Playlist[] = []
+  for (const folder of folders) {
+    const manifest = await getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(
+      joinPath(folder.path, PLAYLIST_MANIFEST)
+    )
+    playlists.push({
+      folder,
+      name: manifest?.name || folder.name,
+      songCount: manifest?.songs.length ?? 0,
+      hasManifest: !!manifest,
+    })
+  }
+  return playlists
+}
+
+/**
+ * 加载一个歌单的歌曲:优先用 manifest 重建;无 manifest 回退到该文件夹音频文件扫描(单层)。
+ */
+export const loadWebDAVPlaylist = async (
+  folder: LX.WebDAVPlay.DriveFolder
+): Promise<LX.WebDAVPlay.MusicInfo[]> => {
+  const manifest = await getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(
+    joinPath(folder.path, PLAYLIST_MANIFEST)
+  )
+  if (manifest?.songs.length) {
+    return manifest.songs.map(song => manifestSongToMusicInfo(folder, song))
+  }
+
+  const items = await getDirectoryItems(folder.path)
+  return items
+    .filter(item => item.type === 'file' && audioExts.has(getExt(item.basename)))
+    .map(toMusicInfo)
+    .sort((a, b) => b.meta.lastModifiedTime - a.meta.lastModifiedTime)
 }

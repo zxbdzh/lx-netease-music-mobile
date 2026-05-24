@@ -1,4 +1,5 @@
 import { createClient, type WebDAVClient } from 'webdav'
+import { Buffer } from '@craftzdog/react-native-buffer'
 import { getData, saveData } from '@/plugins/storage'
 import settingState from '@/store/setting/state'
 import { log } from '@/utils/log'
@@ -75,4 +76,49 @@ export const getWebDAVPlayConfig = async (): Promise<LX.WebDAVPlay.Config> => {
 
 export const saveWebDAVPlayConfig = async (config: LX.WebDAVPlay.Config): Promise<void> => {
   await saveData(CONFIG_KEY, config)
+}
+
+/**
+ * 上传二进制/文本文件到 WebDAV(覆盖已存在文件)。
+ * remotePath 为服务器绝对路径(原始未编码),交由库自行编码,与读路径一致。
+ */
+export const uploadWebDAVFile = async (
+  remotePath: string,
+  data: Buffer | string
+): Promise<void> => {
+  const cli = getClient()
+  if (!cli) throw new Error('WebDAV 未配置')
+  const ok = await cli.putFileContents(remotePath, data as any, { overwrite: true })
+  if (!ok) throw new Error(`上传失败: ${remotePath}`)
+}
+
+/**
+ * 确保目录存在(递归创建)。已存在则跳过。
+ */
+export const ensureWebDAVDirectory = async (dirPath: string): Promise<void> => {
+  const cli = getClient()
+  if (!cli) throw new Error('WebDAV 未配置')
+  if (await cli.exists(dirPath)) return
+  await cli.createDirectory(dirPath, { recursive: true })
+}
+
+export const webdavExists = async (remotePath: string): Promise<boolean> => {
+  const cli = getClient()
+  if (!cli) throw new Error('WebDAV 未配置')
+  return cli.exists(remotePath)
+}
+
+/**
+ * 读取并解析 JSON 文件;不存在/解析失败均返回 null。
+ */
+export const getWebDAVJsonFile = async <T>(remotePath: string): Promise<T | null> => {
+  const cli = getClient()
+  if (!cli) return null
+  try {
+    if (!(await cli.exists(remotePath))) return null
+    const text = (await cli.getFileContents(remotePath, { format: 'text' })) as string
+    return JSON.parse(text) as T
+  } catch {
+    return null
+  }
 }
