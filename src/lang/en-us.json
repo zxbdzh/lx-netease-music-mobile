@@ -78,6 +78,7 @@
   "list_download_to_webdav_failed": "Failed to upload to WebDAV: {message}",
   "list_download_to_webdav_not_configured": "Please configure the connection and select a folder on the WebDAV Play page first",
   "list_download_to_webdav_progress": "Processing ({done}/{total}): {current}",
+  "list_download_to_webdav_quality_title": "Download \"{name}\" as a WebDAV playlist — choose quality",
   "list_download_to_webdav_result": "Upload finished: {uploaded} succeeded, {skipped} skipped, {failed} failed",
   "list_download_to_webdav_start": "Started uploading to WebDAV, please keep the app open",
   "list_edit_action_tip_add_failed": "Failed to add",

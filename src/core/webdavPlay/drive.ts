@@ -162,6 +162,7 @@ const manifestSongToMusicInfo = (
 
 /**
  * 列出 root 下的子文件夹作为歌单;读取各自的 lx_playlist.json 判定 hasManifest 与曲目数。
+ * 同时列各歌单目录,按音频文件实际大小求和得 totalSize(不依赖 manifest 是否记录)。
  */
 export const listWebDAVPlaylists = async (
   root?: LX.WebDAVPlay.DriveFolder | null
@@ -169,14 +170,22 @@ export const listWebDAVPlaylists = async (
   const folders = await listWebDAVFolders(root)
   const playlists: LX.WebDAVPlay.Playlist[] = []
   for (const folder of folders) {
-    const manifest = await getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(
-      joinPath(folder.path, PLAYLIST_MANIFEST)
+    const [manifest, items] = await Promise.all([
+      getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(
+        joinPath(folder.path, PLAYLIST_MANIFEST)
+      ),
+      getDirectoryItems(folder.path),
+    ])
+    const audioFiles = items.filter(
+      item => item.type === 'file' && audioExts.has(getExt(item.basename))
     )
+    const totalSize = audioFiles.reduce((sum, item) => sum + (item.size || 0), 0)
     playlists.push({
       folder,
       name: manifest?.name || folder.name,
-      songCount: manifest?.songs.length ?? 0,
+      songCount: manifest?.songs.length ?? audioFiles.length,
       hasManifest: !!manifest,
+      totalSize,
     })
   }
   return playlists
@@ -184,6 +193,8 @@ export const listWebDAVPlaylists = async (
 
 /**
  * 加载一个歌单的歌曲:优先用 manifest 重建;无 manifest 回退到该文件夹音频文件扫描(单层)。
+ * 无论是否有 manifest,文件大小/修改时间都从实际目录 stat 按文件名补全(manifest 不记录这些字段,
+ * 旧清单亦然),保证两种情况下都能显示文件大小。
  */
 export const loadWebDAVPlaylist = async (
   folder: LX.WebDAVPlay.DriveFolder
@@ -191,11 +202,22 @@ export const loadWebDAVPlaylist = async (
   const manifest = await getWebDAVJsonFile<LX.WebDAVPlay.PlaylistManifest>(
     joinPath(folder.path, PLAYLIST_MANIFEST)
   )
+  const items = await getDirectoryItems(folder.path)
+
   if (manifest?.songs.length) {
-    return manifest.songs.map(song => manifestSongToMusicInfo(folder, song))
+    const statByName = new Map<string, FileStat>()
+    for (const it of items) if (it.type === 'file') statByName.set(it.basename, it)
+    return manifest.songs.map(song => {
+      const info = manifestSongToMusicInfo(folder, song)
+      const stat = statByName.get(song.fileName)
+      if (stat) {
+        info.meta.size = stat.size
+        info.meta.lastModifiedTime = stat.lastmod ? new Date(stat.lastmod).getTime() : 0
+      }
+      return info
+    })
   }
 
-  const items = await getDirectoryItems(folder.path)
   return items
     .filter(item => item.type === 'file' && audioExts.has(getExt(item.basename)))
     .map(toMusicInfo)

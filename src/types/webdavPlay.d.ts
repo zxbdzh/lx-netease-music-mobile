@@ -48,6 +48,7 @@ declare namespace LX {
       name: string
       songCount: number
       hasManifest: boolean
+      totalSize?: number        // 文件夹内音频文件大小之和(字节),由实时目录 stat 求得
     }
   }
 }

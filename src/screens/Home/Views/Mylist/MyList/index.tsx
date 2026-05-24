@@ -3,9 +3,10 @@ import ListMenu, { type ListMenuType } from './ListMenu'
 import ListNameEdit, { type ListNameEditType } from './ListNameEdit'
 import List from './List'
 import ListImportExport, { type ListImportExportType } from './ListImportExport'
-import { handleRemove, handleSync, handleDownloadToWebDAV } from './listAction'
+import { handleRemove, handleSync } from './listAction'
 import ListMusicSort, { type ListMusicSortType } from './ListMusicSort'
 import DuplicateMusic, { type DuplicateMusicType } from './DuplicateMusic'
+import WebDAVQualityModal, { type WebDAVQualityModalType } from './WebDAVQualityModal'
 
 export default () => {
   const [visible, setVisible] = useState(false)
@@ -14,6 +15,7 @@ export default () => {
   const listMusicSortRef = useRef<ListMusicSortType>(null)
   const duplicateMusicRef = useRef<DuplicateMusicType>(null)
   const listImportExportRef = useRef<ListImportExportType>(null)
+  const webdavQualityModalRef = useRef<WebDAVQualityModalType>(null)
 
   useEffect(() => {
     let isInited = false
@@ -39,6 +41,7 @@ export default () => {
       <ListMusicSort ref={listMusicSortRef} />
       <DuplicateMusic ref={duplicateMusicRef} />
       <ListImportExport ref={listImportExportRef} />
+      <WebDAVQualityModal ref={webdavQualityModalRef} />
       <ListMenu
         ref={listMenuRef}
         onNew={(index) => listNameEditRef.current?.showCreate(index)}
@@ -57,7 +60,7 @@ export default () => {
           listImportExportRef.current?.selectFile(info, position)
         }
         onDownloadToWebDAV={(info) => {
-          handleDownloadToWebDAV(info)
+          webdavQualityModalRef.current?.show(info)
         }}
       />
       {/* <ImportExport actionType={actionType} visible={isShowChoosePath} hide={() => setShowChoosePath(false)} selectedListRef={selectedListRef} /> */}

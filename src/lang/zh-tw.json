@@ -78,6 +78,7 @@
   "list_download_to_webdav_failed": "下載到 WebDAV 失敗：{message}",
   "list_download_to_webdav_not_configured": "請先在「WebDAV 播放」頁設定連線並選擇目錄",
   "list_download_to_webdav_progress": "正在處理（{done}/{total}）：{current}",
+  "list_download_to_webdav_quality_title": "下載「{name}」為 WebDAV 歌單，請選擇音質",
   "list_download_to_webdav_result": "上傳完成：成功 {uploaded} 首，跳過 {skipped} 首，失敗 {failed} 首",
   "list_download_to_webdav_start": "開始下載到 WebDAV，請勿退出應用程式",
   "list_edit_action_tip_add_failed": "添加失敗",

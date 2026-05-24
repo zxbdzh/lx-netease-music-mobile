@@ -212,7 +212,9 @@ const PlaylistItem = memo(
           <View style={styles.itemInfo}>
             <Text numberOfLines={1}>{item.name}</Text>
             <Text size={11} color={theme['c-font-label']} numberOfLines={1}>
-              {item.hasManifest ? `${item.songCount} 首` : '未生成歌单清单'}
+              {[item.hasManifest ? `${item.songCount} 首` : '未生成歌单清单', formatSize(item.totalSize)]
+                .filter(Boolean)
+                .join(' · ')}
             </Text>
           </View>
         </TouchableOpacity>
